@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Criminology Research Manual</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Warm Neutrals with Subtle Blue Accents -->
+    <!-- Application Structure Plan: A single-page application with a sticky top navigation bar that allows users to jump to different stages of the research process (Introduction, Conceptualization, Lit Review, Methods, Data & Analysis, Ethics, Writing). This task-oriented structure is more user-friendly for a student than the report's original linear format. Key information is presented through interactive elements like a clickable research process diagram, a radar chart comparing methodologies, and interactive cards for ethical principles and common pitfalls. This design prioritizes findability and active engagement over passive reading. -->
+    <!-- Visualization & Content Choices: 
+        - Report Info: The linear research process. Goal: Organize/Inform. Viz/Method: Interactive flowchart using HTML/CSS/JS. Interaction: Clicking a stage reveals a summary. Justification: Visualizes the research journey, making it more intuitive than a list. Library/Method: Vanilla JS.
+        - Report Info: Comparison of research approaches. Goal: Compare. Viz/Method: Chart.js Radar Chart. Interaction: Tooltips on hover provide details. Justification: Offers a quick, high-impact visual comparison of complex characteristics. Library/Method: Chart.js.
+        - Report Info: Table of common pitfalls. Goal: Inform. Viz/Method: Interactive cards. Interaction: Clicking a "Pitfall" card reveals the "Mitigation" strategy. Justification: Breaks down dense information into digestible, interactive chunks. Library/Method: Vanilla JS.
+        - Report Info: Elements of Informed Consent. Goal: Organize/Inform. Viz/Method: An interactive checklist. Interaction: Users can check off items. Justification: Turns abstract requirements into a practical, usable tool. Library/Method: Vanilla JS.
+        - Report Info: Citation style examples. Goal: Compare/Organize. Viz/Method: Tabbed interface. Interaction: Clicking tabs switches between APA and Chicago style examples. Justification: A clean, standard UI pattern for comparing related information sets, superior to a wide table. Library/Method: Vanilla JS.
+        - Report Info: Research question refinement. Goal: Assist/Generate. Viz/Method: Text input, button, and text output area. Interaction: User inputs topic, clicks button, LLM generates refined questions. Justification: Directly addresses a common student challenge. Library/Method: Gemini API (gemini-2.0-flash).
+        - Report Info: Article summarization. Goal: Assist/Summarize. Viz/Method: Text input, button, and text output area. Interaction: User inputs article ideas, clicks button, LLM generates summary. Justification: Helps with efficient literature review. Library/Method: Gemini API (gemini-2.0-flash).
+        - Report Info: Abstract generation. Goal: Assist/Draft. Viz/Method: Text input, button, and text output area. Interaction: User inputs key points, clicks button, LLM drafts abstract. Justification: Streamlines the writing process. Library/Method: Gemini API (gemini-2.0-flash).
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #F8F5F2;
+            color: #434242;
+        }
+        .nav-link {
+            transition: color 0.3s, border-bottom-color 0.3s;
+            border-bottom: 2px solid transparent;
+        }
+        .nav-link:hover, .nav-link.active {
+            color: #2F4F4F;
+            border-bottom-color: #5C6E7E;
+        }
+        .card {
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        .interactive-card-front, .interactive-card-back {
+            backface-visibility: hidden;
+            transition: transform 0.6s;
+        }
+        .interactive-card-container.flipped .interactive-card-front {
+            transform: rotateY(180deg);
+        }
+        .interactive-card-container.flipped .interactive-card-back {
+            transform: rotateY(0deg);
+        }
+        .interactive-card-back {
+            transform: rotateY(-180deg);
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 400px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 400px;
+            }
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .tab-btn.active {
+            background-color: #5C6E7E;
+            color: #FFFFFF;
+        }
+        .loading-spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-left-color: #5C6E7E;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+            display: none; /* Hidden by default */
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <!-- Header & Navigation -->
+    <header class="bg-[#F8F5F2]/80 backdrop-blur-md sticky top-0 z-50 shadow-sm">
+        <nav class="container mx-auto px-6 py-4">
+            <div class="flex items-center justify-between">
+                <div class="text-xl font-bold text-[#2F4F4F]">Criminology Research Guide</div>
+                <div class="hidden md:flex items-center space-x-6">
+                    <a href="#introduction" class="nav-link px-2 py-1">Introduction</a>
+                    <a href="#conceptualizing" class="nav-link px-2 py-1">Conceptualize</a>
+                    <a href="#literature" class="nav-link px-2 py-1">Lit Review</a>
+                    <a href="#methods" class="nav-link px-2 py-1">Methods</a>
+                    <a href="#data" class="nav-link px-2 py-1">Data & Analysis</a>
+                    <a href="#ethics" class="nav-link px-2 py-1">Ethics</a>
+                    <a href="#writing" class="nav-link px-2 py-1">Writing</a>
+                </div>
+                <div class="md:hidden">
+                    <button id="menu-btn" class="text-gray-700 focus:outline-none">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
+                    </button>
+                </div>
+            </div>
+            <div id="mobile-menu" class="hidden md:hidden mt-4">
+                <a href="#introduction" class="block py-2 px-4 text-sm hover:bg-gray-200 rounded">Introduction</a>
+                <a href="#conceptualizing" class="block py-2 px-4 text-sm hover:bg-gray-200 rounded">Conceptualize</a>
+                <a href="#literature" class="block py-2 px-4 text-sm hover:bg-gray-200 rounded">Lit Review</a>
+                <a href="#methods" class="block py-2 px-4 text-sm hover:bg-gray-200 rounded">Methods</a>
+                <a href="#data" class="block py-2 px-4 text-sm hover:bg-gray-200 rounded">Data & Analysis</a>
+                <a href="#ethics" class="block py-2 px-4 text-sm hover:bg-gray-200 rounded">Ethics</a>
+                <a href="#writing" class="block py-2 px-4 text-sm hover:bg-gray-200 rounded">Writing</a>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container mx-auto px-6 py-12">
+
+        <!-- Introduction Section -->
+        <section id="introduction" class="mb-24 scroll-mt-24">
+            <h1 class="text-4xl md:text-5xl font-bold text-center mb-6 text-[#2F4F4F]">Your Interactive Guide to Criminological Research</h1>
+            <p class="text-lg text-center max-w-3xl mx-auto mb-12">This guide translates the comprehensive Criminology Research Manual into a practical, interactive experience. Navigate the research process, explore methodologies, and master the essentials of ethical and effective inquiry. This tool is designed to support you at every stage of your research journey, from crafting your initial question to presenting your final paper.</p>
+            
+            <h2 class="text-3xl font-bold text-center mb-8">The Research Process at a Glance</h2>
+            <p class="text-center max-w-2xl mx-auto mb-8">The research process is an iterative cycle, not a straight line. Click on each stage below to see a summary of the key steps involved. This visual map helps you understand how each phase connects to the others, allowing you to plan your project effectively.</p>
+            <div id="research-process-container" class="flex flex-col md:flex-row justify-center items-center gap-4 flex-wrap">
+            </div>
+            <div id="research-process-details" class="mt-8 p-6 bg-white rounded-lg shadow-md max-w-3xl mx-auto min-h-[100px]">
+                <p class="text-gray-500 italic">Click a stage above to see details here.</p>
+            </div>
+        </section>
+
+        <!-- Conceptualizing Section -->
+        <section id="conceptualizing" class="mb-24 scroll-mt-24">
+            <h2 class="text-3xl font-bold text-center mb-4">I. Conceptualizing Your Project</h2>
+            <p class="text-center max-w-3xl mx-auto mb-12">This initial phase is where your research takes shape. It involves moving from a broad area of interest to a specific, answerable question and a well-defined plan. A strong concept is the foundation of a successful study.</p>
+            <div class="grid md:grid-cols-2 gap-8">
+                <div class="bg-white p-6 rounded-lg shadow-md card">
+                    <h3 class="text-2xl font-semibold mb-4 text-[#5C6E7E]">Finding Your Question</h3>
+                    <p class="mb-4">The best research starts with a compelling question that addresses a gap in the current literature. Your goal is to make a novel contribution to the scholarly conversation.</p>
+                    <ul class="list-disc list-inside space-y-2">
+                        <li><strong>Explore Broadly:</strong> Use textbooks and foundational readings to get a "big picture" view.</li>
+                        <li><strong>Identify a Gap:</strong> Look for unanswered questions or areas where existing research is contradictory or incomplete.</li>
+                        <li><strong>Follow the Trail:</strong> Use citation databases (Web of Science, Scopus) to trace the work of seminal authors and understand the ongoing scholarly debate.</li>
+                        <li><strong>Get Feedback Early:</strong> Discuss your ideas with advisors to ensure your project is viable and focused.</li>
+                    </ul>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-md card">
+                    <h3 class="text-2xl font-semibold mb-4 text-[#5C6E7E]">Building Your Proposal</h3>
+                    <p class="mb-4">Your research proposal is the blueprint for your study. It should be clear, persuasive, and demonstrate a well-thought-out plan.</p>
+                    <ul class="list-disc list-inside space-y-2">
+                        <li><strong>Problem Statement:</strong> Clearly state the issue your research will address.</li>
+                        <li><strong>Rationale:</strong> Explain why your research is important and valuable.</li>
+                        <li><strong>Aims & Objectives:</strong> Define your overall purpose and the specific, measurable steps you'll take.</li>
+                        <li><strong>Theoretical Framework:</strong> Outline the theory that will guide your analysis. This is the "lens" through which you view the problem.</li>
+                        <li><strong>Research Plan:</strong> Provide a provisional chapter outline and a timeline for your work.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="mt-16 bg-white p-8 rounded-lg shadow-md">
+                <h3 class="text-2xl font-semibold mb-6 text-center text-[#5C6E7E]">✨Refine Your Research Question✨</h3>
+                <p class="text-center max-w-3xl mx-auto mb-4">Struggling to narrow down your topic? Enter a broad area of interest or a draft question below, and let the AI help you refine it into a more focused, researchable question.</p>
+                <div class="flex flex-col items-center">
+                    <textarea id="question-input" class="w-full max-w-xl p-3 border border-gray-300 rounded-md focus:ring-[#5C6E7E] focus:border-[#5C6E7E] mb-4" rows="4" placeholder="e.g., 'Impact of social media on youth crime' or 'How does restorative justice work?'"></textarea>
+                    <button id="refine-question-btn" class="bg-[#5C6E7E] text-white px-6 py-3 rounded-md hover:bg-[#4a5e6f] transition duration-300 flex items-center justify-center">
+                        <span id="refine-question-text">Refine Question ✨</span>
+                        <div id="refine-question-spinner" class="loading-spinner ml-2"></div>
+                    </button>
+                    <div id="refined-question-output" class="mt-6 p-4 bg-gray-100 rounded-lg w-full max-w-xl min-h-[50px] text-gray-700 italic">
+                        Your refined research question will appear here.
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Literature Review Section -->
+        <section id="literature" class="mb-24 scroll-mt-24">
+            <h2 class="text-3xl font-bold text-center mb-4">II. The Comprehensive Literature Review</h2>
+            <p class="text-center max-w-3xl mx-auto mb-12">A literature review is not just a summary of what others have written; it's a critical synthesis that positions your work within the existing scholarly landscape. It demonstrates your command of the field and justifies the need for your research.</p>
+            <div class="bg-white p-8 rounded-lg shadow-md">
+                <h3 class="text-2xl font-semibold mb-6 text-center text-[#5C6E7E]">Key Steps to an Effective Review</h3>
+                <div class="grid md:grid-cols-3 gap-8 text-center">
+                    <div>
+                        <div class="mx-auto bg-[#EAE3DC] w-16 h-16 rounded-full flex items-center justify-center mb-4"><span class="text-2xl">🔍</span></div>
+                        <h4 class="text-xl font-semibold mb-2">Systematic Searching</h4>
+                        <p>Use keywords, Boolean operators (AND, OR), and filters in academic databases like *Criminal Justice Abstracts* and *Sociological Abstracts*.</p>
+                    </div>
+                    <div>
+                        <div class="mx-auto bg-[#EAE3DC] w-16 h-16 rounded-full flex items-center justify-center mb-4"><span class="text-2xl">📚</span></div>
+                        <h4 class="text-xl font-semibold mb-2">Critical Appraisal</h4>
+                        <p>Go beyond summary. Analyze, synthesize, and evaluate the literature. Identify themes, controversies, and gaps.</p>
+                    </div>
+                    <div>
+                        <div class="mx-auto bg-[#EAE3DC] w-16 h-16 rounded-full flex items-center justify-center mb-4"><span class="text-2xl">✍️</span></div>
+                        <h4 class="text-xl font-semibold mb-2">Structured Writing</h4>
+                        <p>Organize your review thematically. Don't just list sources. Build an argument that leads to your research question.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-16 bg-white p-8 rounded-lg shadow-md">
+                <h3 class="text-2xl font-semibold mb-6 text-center text-[#5C6E7E]">✨Summarize Article Idea✨</h3>
+                <p class="text-center max-w-3xl mx-auto mb-4">Need a quick summary of a potential article or research concept? Describe the main points or findings below, and the AI will generate a concise summary for you.</p>
+                <div class="flex flex-col items-center">
+                    <textarea id="article-summary-input" class="w-full max-w-xl p-3 border border-gray-300 rounded-md focus:ring-[#5C6E7E] focus:border-[#5C6E7E] mb-4" rows="4" placeholder="e.g., 'Study on juvenile delinquency, factors include peer influence and family background, suggests early intervention programs.'"></textarea>
+                    <button id="summarize-article-btn" class="bg-[#5C6E7E] text-white px-6 py-3 rounded-md hover:bg-[#4a5e6f] transition duration-300 flex items-center justify-center">
+                        <span id="summarize-article-text">Summarize Article Idea ✨</span>
+                        <div id="summarize-article-spinner" class="loading-spinner ml-2"></div>
+                    </button>
+                    <div id="article-summary-output" class="mt-6 p-4 bg-gray-100 rounded-lg w-full max-w-xl min-h-[50px] text-gray-700 italic">
+                        Your article summary will appear here.
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Methods Section -->
+        <section id="methods" class="mb-24 scroll-mt-24">
+            <h2 class="text-3xl font-bold text-center mb-4">III. Research Design & Methods</h2>
+            <p class="text-center max-w-3xl mx-auto mb-12">Your choice of research method is determined by your research question. This section explores the primary approaches in criminology, helping you decide which is the best fit for your study. A sound design ensures the validity and reliability of your findings.</p>
+            <div class="bg-white p-8 rounded-lg shadow-md">
+                <h3 class="text-2xl font-semibold mb-6 text-center text-[#5C6E7E]">Comparing Research Approaches</h3>
+                <p class="text-center max-w-2xl mx-auto mb-8">Each research approach has distinct strengths. Quantitative methods are excellent for testing hypotheses and identifying broad patterns, while qualitative methods provide deep, contextual understanding. Mixed methods combine both to create a more comprehensive picture. The chart below provides a visual comparison of their core characteristics.</p>
+                <div class="chart-container">
+                    <canvas id="methodsChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- Data & Analysis Section -->
+        <section id="data" class="mb-24 scroll-mt-24">
+            <h2 class="text-3xl font-bold text-center mb-4">IV. Data Collection & Analysis</h2>
+            <p class="text-center max-w-3xl mx-auto mb-12">This section provides practical guidance on acquiring, organizing, and making sense of criminological data. From official statistics to in-depth interviews, the quality of your data and the rigor of your analysis are the cornerstones of credible research.</p>
+
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <div class="bg-white p-6 rounded-lg shadow-md card">
+                    <h3 class="text-2xl font-semibold mb-4 text-[#5C6E7E]">Data Sources</h3>
+                    <p class="mb-4">Criminology uses diverse data. Choose sources that best fit your question, and always critically evaluate their limitations.</p>
+                    <ul class="list-disc list-inside space-y-2">
+                        <li><strong>Official Statistics:</strong> UCR & NIBRS data provide insights into reported crime.</li>
+                        <li><strong>Victimization Surveys:</strong> NCVS captures both reported and unreported crime.</li>
+                        <li><strong>Secondary Data:</strong> Use existing datasets to answer new research questions efficiently.</li>
+                    </ul>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-md card">
+                    <h3 class="text-2xl font-semibold mb-4 text-[#5C6E7E]">Instrument Design</h3>
+                    <p class="mb-4">Well-designed instruments are key to collecting accurate data. This requires careful planning and pre-testing.</p>
+                     <ul class="list-disc list-inside space-y-2">
+                        <li><strong>Surveys:</strong> Develop clear, unbiased questions. Use cognitive interviewing to test them.</li>
+                        <li><strong>Interviews:</strong> Create an interview guide to ensure consistency while allowing flexibility.</li>
+                    </ul>
+                </div>
+                 <div class="bg-white p-6 rounded-lg shadow-md card lg:col-span-1">
+                    <h3 class="text-2xl font-semibold mb-4 text-[#5C6E7E]">Transcription</h3>
+                    <p class="mb-4">For qualitative data, transcription is a critical first step of analysis. It's more than typing; it involves interpretive choices.</p>
+                     <ul class="list-disc list-inside space-y-2">
+                        <li><strong>Choose a Type:</strong> Verbatim (captures everything) vs. Intelligent Verbatim (cleaner text).</li>
+                        <li><strong>Be Detailed:</strong> Note pauses and non-verbal cues to retain context.</li>
+                        <li><strong>Ensure Security:</strong> Use pseudonyms and secure storage to protect confidentiality.</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="mt-16">
+                 <h3 class="text-2xl font-semibold mb-6 text-center text-[#5C6E7E]">Avoiding Common Research Pitfalls</h3>
+                 <p class="text-center max-w-3xl mx-auto mb-8">Awareness of potential pitfalls is the first step toward rigorous research. Click on each pitfall below to reveal the recommended mitigation strategy to protect the integrity of your study.</p>
+                 <div id="pitfalls-container" class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                 </div>
+            </div>
+        </section>
+
+        <!-- Ethics Section -->
+        <section id="ethics" class="mb-24 scroll-mt-24">
+            <h2 class="text-3xl font-bold text-center mb-4">V. Ethical Considerations</h2>
+            <p class="text-center max-w-3xl mx-auto mb-12">Ethical conduct is the bedrock of responsible research, especially in a field dealing with sensitive topics and vulnerable populations. This section outlines the core principles you must uphold to protect your participants and ensure the integrity of your work.</p>
+            <div class="grid md:grid-cols-2 gap-8 items-start">
+                <div class="bg-white p-8 rounded-lg shadow-md">
+                    <h3 class="text-2xl font-semibold mb-4 text-[#5C6E7E]">Core Principles</h3>
+                    <ul class="space-y-4">
+                        <li class="flex items-start">
+                            <span class="text-xl mr-4 mt-1">🛡️</span>
+                            <div>
+                                <h4 class="font-semibold">Protection of Participants</h4>
+                                <p>Safeguard the rights, dignity, and well-being of all participants. Your primary duty is to minimize harm.</p>
+                            </div>
+                        </li>
+                        <li class="flex items-start">
+                             <span class="text-xl mr-4 mt-1">🤝</span>
+                            <div>
+                                <h4 class="font-semibold">Beneficence</h4>
+                                <p>Strive to maximize the potential benefits of your research while minimizing any potential risks or harm.</p>
+                            </div>
+                        </li>
+                        <li class="flex items-start">
+                            <span class="text-xl mr-4 mt-1">✅</span>
+                            <div>
+                                <h4 class="font-semibold">Integrity & Credibility</h4>
+                                <p>Maintain trustworthiness in your findings and processes to promote public trust and advance knowledge.</p>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+                <div class="bg-white p-8 rounded-lg shadow-md">
+                    <h3 class="text-2xl font-semibold mb-4 text-[#5C6E7E]">Informed Consent Checklist</h3>
+                    <p class="mb-4">Informed consent is an ongoing dialogue, not a one-time form. Use this checklist to ensure you've covered all essential elements before and during your research.</p>
+                    <div id="consent-checklist" class="space-y-3">
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Writing Section -->
+        <section id="writing" class="scroll-mt-24">
+            <h2 class="text-3xl font-bold text-center mb-4">VI. Academic Writing & Dissemination</h2>
+            <p class="text-center max-w-3xl mx-auto mb-12">The final stage of research is communicating your findings. Clear, precise, and ethically responsible writing ensures your work is understood, respected, and contributes meaningfully to the field. Adhering to academic standards is crucial for credibility.</p>
+            
+            <div class="bg-white p-8 rounded-lg shadow-md">
+                <h3 class="text-2xl font-semibold mb-6 text-center text-[#5C6E7E]">Citation Style Quick Reference</h3>
+                <p class="text-center max-w-3xl mx-auto mb-8">Proper citation is fundamental to academic integrity. Use the tabs below to quickly compare examples for common source types in APA (7th Ed.) and Chicago (17th Ed.) styles. Always double-check with the official style guides for complex sources.</p>
+                
+                <div class="flex justify-center border-b mb-6">
+                    <button class="tab-btn py-2 px-6 font-semibold text-gray-600 focus:outline-none active" data-tab="apa">APA (7th Ed.)</button>
+                    <button class="tab-btn py-2 px-6 font-semibold text-gray-600 focus:outline-none" data-tab="chicago">Chicago (17th Ed.)</button>
+                </div>
+
+                <div id="tab-container">
+                    <!-- APA Content -->
+                    <div id="apa-content" class="tab-content active">
+                        <div class="space-y-6">
+                            <div>
+                                <h4 class="font-semibold text-lg">Journal Article</h4>
+                                <p class="text-sm text-gray-600 mb-1">In-text: (Author, Year, p. X)</p>
+                                <p class="bg-gray-100 p-3 rounded">Last Name, A.A. (Year). Title of article. *Title of Journal, volume*(issue), page range. https://doi.org/xxxx</p>
+                            </div>
+                            <div>
+                                <h4 class="font-semibold text-lg">Book</h4>
+                                <p class="text-sm text-gray-600 mb-1">In-text: (Author, Year)</p>
+                                <p class="bg-gray-100 p-3 rounded">Last Name, A.A. (Year). *Title of book: Subtitle of book*. Publisher.</p>
+                            </div>
+                            <div>
+                                <h4 class="font-semibold text-lg">Court Case</h4>
+                                <p class="text-sm text-gray-600 mb-1">In-text: (*Case Name*, Year)</p>
+                                <p class="bg-gray-100 p-3 rounded">*Name v. Name*, Volume Source Page (Court Date). URL if available.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Chicago Content -->
+                    <div id="chicago-content" class="tab-content">
+                        <div class="space-y-6">
+                            <div>
+                                <h4 class="font-semibold text-lg">Journal Article</h4>
+                                <p class="text-sm text-gray-600 mb-1">Footnote: 1. First Name Last Name, "Title of the Article," *Journal Name* Vol, no. X (Year): page.</p>
+                                <p class="bg-gray-100 p-3 rounded">Bibliography: Last Name, First Name. "Title of the Article." *Journal Name* Volume, no. Issue (Year): Pages. https://doi.org/xxxx</p>
+                            </div>
+                             <div>
+                                <h4 class="font-semibold text-lg">Book</h4>
+                                <p class="text-sm text-gray-600 mb-1">Footnote: 1. First Name Last Name, *Title of the Book* (Publisher, Year), page.</p>
+                                <p class="bg-gray-100 p-3 rounded">Bibliography: Last Name, First Name. *Title of the Book*. Publisher, Year.</p>
+                            </div>
+                            <div>
+                                <h4 class="font-semibold text-lg">Court Case</h4>
+                                <p class="text-sm text-gray-600 mb-1">Footnote: 1. *Case Name*, Volume Source Page (Year).</p>
+                                <p class="bg-gray-100 p-3 rounded">Bibliography: Not typically included in bibliography.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-16 bg-white p-8 rounded-lg shadow-md">
+                <h3 class="text-2xl font-semibold mb-6 text-center text-[#5C6E7E]">✨Generate Abstract Draft✨</h3>
+                <p class="text-center max-w-3xl mx-auto mb-4">Provide key information about your research (e.g., purpose, methods, key findings, conclusions), and the AI will help you draft a concise abstract.</p>
+                <div class="flex flex-col items-center">
+                    <textarea id="abstract-input" class="w-full max-w-xl p-3 border border-gray-300 rounded-md focus:ring-[#5C6E7E] focus:border-[#5C6E7E] mb-4" rows="6" placeholder="e.g., 'Purpose: To investigate the effectiveness of community policing on crime rates. Methods: Survey of residents and analysis of crime data. Findings: Community policing significantly reduced property crime. Conclusion: Recommends increased funding for similar programs.'"></textarea>
+                    <button id="generate-abstract-btn" class="bg-[#5C6E7E] text-white px-6 py-3 rounded-md hover:bg-[#4a5e6f] transition duration-300 flex items-center justify-center">
+                        <span id="generate-abstract-text">Generate Abstract Draft ✨</span>
+                        <div id="generate-abstract-spinner" class="loading-spinner ml-2"></div>
+                    </button>
+                    <div id="abstract-output" class="mt-6 p-4 bg-gray-100 rounded-lg w-full max-w-xl min-h-[50px] text-gray-700 italic">
+                        Your abstract draft will appear here.
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+    
+    <footer class="bg-gray-800 text-white mt-24">
+        <div class="container mx-auto px-6 py-8 text-center">
+            <p>&copy; 2024 Interactive Criminology Research Manual. A synthesis of best practices for student researchers.</p>
+            <p class="text-sm text-gray-400 mt-2">This is a learning tool and does not replace formal academic supervision or official style guides.</p>
+        </div>
+    </footer>
+
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+
+    // Mobile menu toggle
+    const menuBtn = document.getElementById('menu-btn');
+    const mobileMenu = document.getElementById('mobile-menu');
+    menuBtn.addEventListener('click', () => {
+        mobileMenu.classList.toggle('hidden');
+    });
+
+    // Active nav link highlighting on scroll
+    const sections = document.querySelectorAll('section');
+    const navLinks = document.querySelectorAll('.nav-link');
+
+    window.addEventListener('scroll', () => {
+        let current = '';
+        sections.forEach(section => {
+            const sectionTop = section.offsetTop;
+            if (pageYOffset >= sectionTop - 150) {
+                current = section.getAttribute('id');
+            }
+        });
+
+        navLinks.forEach(link => {
+            link.classList.remove('active');
+            if (link.getAttribute('href').includes(current)) {
+                link.classList.add('active');
+            }
+        });
+    });
+
+    // Research Process Interactive Diagram
+    const researchProcessData = [
+        { stage: '1. Conceptualize', details: 'Define your research problem, identify gaps in literature, formulate questions or hypotheses, and develop a comprehensive research proposal that outlines your entire study.' },
+        { stage: '2. Lit Review', details: 'Systematically search for, critically evaluate, and synthesize existing scholarly work to position your research, justify its significance, and inform your methodology.' },
+        { stage: '3. Design Methods', details: 'Select an overarching research design (quantitative, qualitative, or mixed-methods) and specific methods (surveys, interviews) that will best answer your research question.' },
+        { stage: '4. Collect Data', details: 'Execute your research plan by gathering data using your chosen instruments. This phase requires meticulous attention to ethical protocols and data management.' },
+        { stage: '5. Analyze & Interpret', details: 'Process and analyze the collected data using appropriate statistical or thematic techniques to identify patterns, relationships, and insights that address your research question.' },
+        { stage: '6. Write & Disseminate', details: 'Communicate your findings through a well-structured academic paper or thesis, adhering to citation standards and ethical guidelines for responsible dissemination.' }
+    ];
+
+    const processContainer = document.getElementById('research-process-container');
+    const detailsContainer = document.getElementById('research-process-details');
+
+    researchProcessData.forEach((item, index) => {
+        const stageEl = document.createElement('div');
+        stageEl.className = 'flex items-center space-x-4 cursor-pointer p-3 rounded-lg hover:bg-gray-100';
+        stageEl.innerHTML = `
+            <div class="bg-white border-2 border-[#5C6E7E] text-[#2F4F4F] w-24 h-24 rounded-lg flex items-center justify-center text-center font-semibold p-2 card">${item.stage}</div>
+            ${index < researchProcessData.length - 1 ? '<div class="hidden md:block text-2xl text-gray-400 font-light">&rarr;</div>' : ''}
+        `;
+        stageEl.addEventListener('click', () => {
+            detailsContainer.innerHTML = `<h4 class="font-bold text-lg mb-2 text-[#2F4F4F]">${item.stage}</h4><p>${item.details}</p>`;
+        });
+        processContainer.appendChild(stageEl);
+    });
+
+    // Methods Radar Chart
+    const ctx = document.getElementById('methodsChart').getContext('2d');
+    const methodsChart = new Chart(ctx, {
+        type: 'radar',
+        data: {
+            labels: ['Confirms Hypotheses', 'Explores Ideas', 'Large Sample', 'Deep Context', 'Generalizability', 'Subjectivity'],
+            datasets: [{
+                label: 'Quantitative',
+                data: [5, 2, 5, 2, 5, 1],
+                backgroundColor: 'rgba(92, 110, 126, 0.2)',
+                borderColor: 'rgba(92, 110, 126, 1)',
+                borderWidth: 2
+            }, {
+                label: 'Qualitative',
+                data: [2, 5, 1, 5, 2, 5],
+                backgroundColor: 'rgba(217, 183, 130, 0.2)',
+                borderColor: 'rgba(217, 183, 130, 1)',
+                borderWidth: 2
+            }]
+        },
+        options: {
+            maintainAspectRatio: false,
+            scales: {
+                r: {
+                    angleLines: { color: '#ddd' },
+                    grid: { color: '#ddd' },
+                    pointLabels: { font: { size: 14 }, color: '#434242' },
+                    ticks: {
+                        backdropColor: 'transparent',
+                        stepSize: 1,
+                        max: 5,
+                        min: 0
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    position: 'top',
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) {
+                                label += ': ';
+                            }
+                            label += ['Low', 'Low', 'Medium', 'High', 'High'][context.raw - 1];
+                            return label;
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // Interactive Pitfalls Cards
+    const pitfallsData = [
+        { title: 'Data Quality Issues', details: 'Mitigation: Implement rigorous data cleaning protocols. Pilot test all data collection instruments to identify and fix measurement errors before full-scale deployment.' },
+        { title: 'Sampling Bias', details: 'Mitigation: Use probability sampling methods where possible for generalizability. If using non-probability samples, clearly acknowledge the limitations in your final report.' },
+        { title: 'Over-interpretation', details: 'Mitigation: Ground all conclusions firmly in the data. Explicitly state the limitations of your study (e.g., sample size, specific context) to avoid making unsupported claims.' },
+        { title: 'Confounding Variables', details: 'Mitigation: Use robust experimental or quasi-experimental designs with control groups. Employ statistical controls in your analysis to account for potential external influences.' },
+        { title: 'Ethical Lapses', details: 'Mitigation: Adhere strictly to IRB guidelines. Maintain confidentiality through secure data management and engage in continuous ethical reflection throughout the research process.' },
+        { title: 'Researcher Bias', details: 'Mitigation: Proactively acknowledge your own potential biases. Use triangulation (multiple data sources or methods) and seek peer review to ensure objectivity.' },
+    ];
+
+    const pitfallsContainer = document.getElementById('pitfalls-container');
+    pitfallsData.forEach(pitfall => {
+        const cardContainer = document.createElement('div');
+        cardContainer.className = 'interactive-card-container w-full h-48 cursor-pointer';
+        cardContainer.style.perspective = '1000px';
+
+        cardContainer.innerHTML = `
+            <div class="relative w-full h-full">
+                <div class="interactive-card-front absolute w-full h-full bg-white rounded-lg shadow-md flex flex-col justify-center items-center p-4 text-center">
+                    <h4 class="text-xl font-semibold text-[#2F4F4F]">${pitfall.title}</h4>
+                    <p class="text-sm text-gray-500 mt-2">(Click to see mitigation)</p>
+                </div>
+                <div class="interactive-card-back absolute w-full h-full bg-[#5C6E7E] text-white rounded-lg shadow-md flex flex-col justify-center p-4">
+                    <h5 class="font-bold mb-2">Mitigation Strategy:</h5>
+                    <p class="text-sm">${pitfall.details}</p>
+                </div>
+            </div>
+        `;
+
+        cardContainer.addEventListener('click', () => {
+            cardContainer.classList.toggle('flipped');
+        });
+        pitfallsContainer.appendChild(cardContainer);
+    });
+    
+    // Informed Consent Checklist
+    const consentItems = [
+        "Statement of Research & Voluntary Participation",
+        "Clear Purpose of the Study",
+        "Description of Procedures & Duration",
+        "Explanation of Risks & Discomforts",
+        "Explanation of Benefits",
+        "Assurance of Confidentiality & Anonymity",
+        "Statement on the Right to Withdraw",
+        "Details on Data Storage & Security",
+        "Contact Info for Researchers & IRB",
+    ];
+
+    const checklistContainer = document.getElementById('consent-checklist');
+    consentItems.forEach(item => {
+        const label = document.createElement('label');
+        label.className = 'flex items-center space-x-3 p-2 rounded-md hover:bg-gray-100 cursor-pointer';
+        label.innerHTML = `
+            <input type="checkbox" class="h-5 w-5 rounded border-gray-300 text-[#5C6E7E] focus:ring-[#5C6E7E]">
+            <span>${item}</span>
+        `;
+        checklistContainer.appendChild(label);
+    });
+
+    // Citation Style Tabs
+    const tabButtons = document.querySelectorAll('.tab-btn');
+    const tabContents = document.querySelectorAll('.tab-content');
+
+    tabButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const tabId = button.dataset.tab;
+
+            tabButtons.forEach(btn => btn.classList.remove('active'));
+            button.classList.add('active');
+
+            tabContents.forEach(content => {
+                if (content.id === `${tabId}-content`) {
+                    content.classList.add('active');
+                } else {
+                    content.classList.remove('active');
+                }
+            });
+        });
+    });
+
+    // Gemini API Integration Functions
+    async function callGeminiAPI(prompt, outputElement, spinnerElement, buttonTextElement) {
+        outputElement.innerHTML = '<p class="text-gray-500 italic">Generating...</p>';
+        spinnerElement.style.display = 'block';
+        buttonTextElement.style.display = 'none';
+
+        let chatHistory = [];
+        chatHistory.push({ role: "user", parts: [{ text: prompt }] });
+        const payload = { contents: chatHistory };
+        const apiKey = "AIzaSyAsCeRPk5TSUiusjv6SI7a-KSDMkEfaF7A"; 
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+        try {
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const result = await response.json();
+            if (result.candidates && result.candidates.length > 0 &&
+                result.candidates[0].content && result.candidates[0].content.parts &&
+                result.candidates[0].content.parts.length > 0) {
+                const text = result.candidates[0].content.parts[0].text;
+                outputElement.innerHTML = text.replace(/\n/g, '<br>'); // Replace newlines with <br> for HTML display
+            } else {
+                outputElement.innerHTML = '<p class="text-red-500">Error: Could not get a response from the AI. Please try again.</p>';
+                console.error("Unexpected API response structure:", result);
+            }
+        } catch (error) {
+            outputElement.innerHTML = `<p class="text-red-500">Error: ${error.message}. Please check your input and try again.</p>`;
+            console.error("API call failed:", error);
+        } finally {
+            spinnerElement.style.display = 'none';
+            buttonTextElement.style.display = 'inline';
+        }
+    }
+
+    // Refine Research Question Feature
+    const refineQuestionBtn = document.getElementById('refine-question-btn');
+    const questionInput = document.getElementById('question-input');
+    const refinedQuestionOutput = document.getElementById('refined-question-output');
+    const refineQuestionSpinner = document.getElementById('refine-question-spinner');
+    const refineQuestionText = document.getElementById('refine-question-text');
+
+    refineQuestionBtn.addEventListener('click', () => {
+        const input = questionInput.value.trim();
+        if (input) {
+            const prompt = `Refine the following broad research topic or draft question for a criminology student to be more focused, specific, and researchable. Provide 3-5 distinct, well-formulated questions.
+            
+            Input: "${input}"
+            
+            Example Output:
+            1. How do community policing initiatives impact property crime rates in urban areas?
+            2. What is the perceived effectiveness of restorative justice programs among juvenile offenders in rural settings?
+            3. To what extent does social media exposure influence aggressive behavior in adolescents, specifically in the context of cyberbullying?`;
+            
+            callGeminiAPI(prompt, refinedQuestionOutput, refineQuestionSpinner, refineQuestionText);
+        } else {
+            refinedQuestionOutput.innerHTML = '<p class="text-red-500">Please enter a topic or draft question to refine.</p>';
+        }
+    });
+
+    // Summarize Article Idea Feature
+    const summarizeArticleBtn = document.getElementById('summarize-article-btn');
+    const articleSummaryInput = document.getElementById('article-summary-input');
+    const articleSummaryOutput = document.getElementById('article-summary-output');
+    const summarizeArticleSpinner = document.getElementById('summarize-article-spinner');
+    const summarizeArticleText = document.getElementById('summarize-article-text');
+
+    summarizeArticleBtn.addEventListener('click', () => {
+        const input = articleSummaryInput.value.trim();
+        if (input) {
+            const prompt = `Summarize the following article idea or key points into a concise, academic summary suitable for a literature review. Focus on the main argument, methodology (if implied), and key findings/implications.
+            
+            Input: "${input}"
+            
+            Example Output:
+            This hypothetical study explores the correlation between early childhood trauma and adult criminal behavior, utilizing a longitudinal design. Findings suggest a significant link, emphasizing the need for early intervention programs to mitigate long-term risks.`;
+            
+            callGeminiAPI(prompt, articleSummaryOutput, summarizeArticleSpinner, summarizeArticleText);
+        } else {
+            articleSummaryOutput.innerHTML = '<p class="text-red-500">Please enter an article idea or key points to summarize.</p>';
+        }
+    });
+
+    // Generate Abstract Draft Feature
+    const generateAbstractBtn = document.getElementById('generate-abstract-btn');
+    const abstractInput = document.getElementById('abstract-input');
+    const abstractOutput = document.getElementById('abstract-output');
+    const generateAbstractSpinner = document.getElementById('generate-abstract-spinner');
+    const generateAbstractText = document.getElementById('generate-abstract-text');
+
+    generateAbstractBtn.addEventListener('click', () => {
+        const input = abstractInput.value.trim();
+        if (input) {
+            const prompt = `Based on the following key information about a research study, draft a concise academic abstract (around 150-250 words). Include the purpose, methods, key findings, and conclusions/implications.
+            
+            Key Information: "${input}"
+            
+            Example Output:
+            This study investigated the effectiveness of community policing initiatives in reducing property crime rates in urban areas. Utilizing a mixed-methods approach, including surveys of residents (N=500) and analysis of official crime data (2010-2020), findings indicate a statistically significant reduction in property crime within areas implementing community policing strategies. Qualitative data further revealed increased public trust and cooperation with law enforcement. The study concludes that community policing is a viable strategy for crime reduction and community engagement, recommending increased funding and broader implementation of similar programs.`;
+            
+            callGeminiAPI(prompt, abstractOutput, generateAbstractSpinner, generateAbstractText);
+        } else {
+            abstractOutput.innerHTML = '<p class="text-red-500">Please enter key information to generate an abstract.</p>';
+        }
+    });
+});
+</script>
+
+</body>
+</html>
